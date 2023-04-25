@@ -1,3 +1,4 @@
+#include <sys/_types/_int32_t.h>
 #ifdef __cplusplus
 extern "C"{
 #endif
@@ -27,6 +28,8 @@ Implementation in calcLib.c
   int randomInt(void);// Return a random integer, between 0 and 100. 
   double randomFloat(void);// Return a random float between 0.0 and 100.0
 
+  int inCalc(int32_t a, int32_t b, int32_t arith);
+  double flCalc(double a, double b, int32_t arith);
 
 #endif
 

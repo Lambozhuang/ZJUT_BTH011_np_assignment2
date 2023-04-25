@@ -70,4 +70,47 @@ double randomFloat(void){
   return(x);
 };
 
+int inCalc(int32_t a, int32_t b, int32_t arith) {
+   switch (arith) {
+   case 1:
+      return a+b;
+      break;
+   case 2:
+      return a/b;
+      break;
+   case 3:
+      return a*b;
+      break;
+   case 4:
+      return a-b;
+      break;
+   default:
+      return 0;
+      printf("Error: Invalid arith for int.");
+      exit(1);
+      break;
+   }
+};
+
+double flCalc(double a, double b, int32_t arith) {
+   switch (arith) {
+   case 5:
+      return a+b;
+      break;
+   case 6:
+      return a/b;
+      break;
+   case 7:
+      return a*b;
+      break;
+   case 8:
+      return a-b;
+      break;
+   default:
+      return 0;
+      printf("Error: Invalid arith for float.");
+      exit(1);
+      break;
+   }
+};
 
