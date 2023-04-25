@@ -1,3 +1,4 @@
+#include <_types/_uint16_t.h>
 #include <_types/_uint32_t.h>
 #include <cstdio>
 #include <cstdlib>
@@ -10,18 +11,19 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/_endian.h>
+#include <sys/_types/_int32_t.h>
 #include <sys/_types/_ssize_t.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 // Included to get the support library
-// #include <calcLib.h>
+#include "calcLib.h"
 
 #include "protocol.h"
 
 #define BUF_SIZE 1024
 
-#define DEBUG
+// #define DEBUG
 
 int main(int argc, char *argv[]) {
 
@@ -63,7 +65,6 @@ int main(int argc, char *argv[]) {
 
   char buf[BUF_SIZE];
   ssize_t nread;
-  uint32_t id = 0;
   struct sockaddr_in from_addr;
   socklen_t from_len = sizeof(from_addr);
 
@@ -107,31 +108,134 @@ int main(int argc, char *argv[]) {
         perror("recvfrom error");
         exit(1);
       }
-
+#ifdef DEBUG
       printf("Received response from server: %s\n", buf);
+#endif
       break;
     }
   }
 
-  if (count >=3) {
+  if (count >= 3) {
     printf("Server is not responding, exiting...\n");
     exit(1);
   }
 
   struct calcProtocol *result = (struct calcProtocol *)buf;
-  uint16_t type = ntohs(result->type);
-  uint32_t id_recv = ntohl(result->id);
-  int32_t result_int = ntohl(result->inResult);
-  uint32_t error_code = ntohl(result->arith);
 
-  if (type == 1) {
-    // print the whole struct of result
-    printf("type: %u\n", type);
-    printf("id: %u\n", id_recv);
-    printf("arith: %u\n", error_code);
-    printf("inResult: %d\n", result_int);
+  if (ntohs(result->type) != 1) {
+    printf("NOT OK. Invalid protocol.\n");
+    exit(1);
+  }
+
+#ifdef DEBUG
+  // print the whole struct of result
+  printf("type: %u\n", ntohs(result->type));
+  printf("id: %u\n", ntohl(result->id));
+  printf("arith: %u\n", ntohl(result->arith));
+  printf("inValue1: %d\n", ntohl(result->inValue1));
+  printf("inValue2: %d\n", ntohl(result->inValue2));
+  printf("inResult: %c\n", ntohl(result->inResult));
+  printf("flValue1: %f\n", result->flValue1);
+  printf("flValue2: %f\n", result->flValue2);
+  printf("flResult: %f\n", result->flResult);
+#endif
+
+  int32_t arith = ntohl(result->arith);
+
+  int32_t inValue1 = ntohl(result->inValue1);
+  int32_t inValue2 = ntohl(result->inValue2);
+  double flValue1 = result->flValue1;
+  double flValue2 = result->flValue2;
+
+  int32_t inResult = 0;
+  double flResult = 0;
+
+  if (arith > 4) {
+    // using float values
+    printf("ASSIGNMENT: %s %f %f\n", getArithString(arith), flValue1, flValue2);
+    flResult = flCalc(flValue1, flValue2, arith);
+    printf("Calculated the result to %f\n", flResult);
   } else {
-    printf("Received an invalid type of message, exiting...\n");
+    // using int values
+    printf("ASSIGNMENT: %s %d %d\n", getArithString(arith), inValue1, inValue2);
+    inResult = inCalc(inValue1, inValue2, arith);
+    printf("Calcualted the result to %d\n", inResult);
+  }
+
+  // send the result back to server
+  struct calcProtocol response;
+  memset(&response, 0, sizeof(response));
+  response.type = htons(2);
+  response.id = result->id;
+  response.arith = result->arith;
+  response.inValue1 = result->inValue1;
+  response.inValue2 = result->inValue2;
+  response.inResult = htonl(inResult);
+  response.flValue1 = flValue1;
+  response.flValue2 = flValue2;
+  response.flResult = flResult;
+
+  count = 0;
+  while (count < 3) {
+    sendto(sockfd, &response, sizeof(response), 0,
+           (struct sockaddr *)&server_addr, sizeof(server_addr));
+
+    // wait for response, timeout = 2s
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(sockfd, &readfds);
+    int ret = select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+    if (ret < 0) {
+      perror("select error");
+      exit(1);
+    } else if (ret == 0) {
+      // timeout
+      printf("Timeout, retransmitting...\n");
+      count++;
+      continue;
+    } else {
+      // receive the message
+      nread = recvfrom(sockfd, buf, sizeof(buf), 0,
+                       (struct sockaddr *)&from_addr, &from_len);
+      if (nread < 0) {
+        perror("recvfrom error");
+        exit(1);
+      }
+#ifdef DEBUG
+      printf("Received response from server: %s\n", buf);
+#endif
+      break;
+    }
+  }
+
+  if (count >= 3) {
+    printf("Server is not responding, exiting...\n");
+    exit(1);
+  }
+
+  // map the result to the struct calcMessage and print
+  struct calcMessage *result2 = (struct calcMessage *)buf;
+#ifdef DEBUG
+  printf("type: %u\n", ntohs(result2->type));
+  printf("message: %u\n", ntohl(result2->message));
+#endif
+
+  uint16_t server_type = ntohs(result2->type);
+  if (server_type != 2) {
+    printf("Invalid type of protocol.\n");
+    exit(1);
+  }
+  uint32_t server_message = ntohl(result2->message);
+  if (server_message == 1) {
+    if (arith > 4) {
+      printf("OK (myresult=%f)\n", flResult);
+    } else {
+      printf("OK (myresult=%d)\n", inResult);
+    }
+  } else if (server_message == 2) {
+    printf("NOT OK\n");
+  } else {
+    printf("UNKNOWN\n");
     exit(1);
   }
 
