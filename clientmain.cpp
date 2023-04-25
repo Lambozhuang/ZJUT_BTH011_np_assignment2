@@ -2,6 +2,7 @@
 #include <_types/_uint32_t.h>
 #include <cstdio>
 #include <cstdlib>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 /* You will to add includes here */
@@ -12,6 +13,7 @@
 #include <string.h>
 #include <sys/_endian.h>
 #include <sys/_types/_int32_t.h>
+#include <sys/_types/_socklen_t.h>
 #include <sys/_types/_ssize_t.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -23,22 +25,27 @@
 
 #define BUF_SIZE 1024
 
-// #define DEBUG
+#define DEBUG
+// #define DEBUG2
 
 int main(int argc, char *argv[]) {
 
   /* Do magic */
 
-  // TODO: IPV6 support
-  char delim[] = ":";
-  char *dest_host = strtok(argv[1], delim);
-  char *dest_port = strtok(NULL, delim);
+  char *dest_host = argv[1];
+  char *dest_port = strrchr(dest_host, ':');
+  if (dest_port == NULL) {
+    printf("Invalid host:port\n");
+    exit(1);
+  }
+  *dest_port++ = '\0';
   int port = atoi(dest_port);
 
   // convert ip and port to sockaddr_in
   struct in_addr ip_addr;
   inet_aton(dest_host, &ip_addr);
-  port = htons(port);
+
+  printf("Host: %s, and port: %d.\n", dest_host, port);
 
   // create udp socket
   int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -52,7 +59,34 @@ int main(int argc, char *argv[]) {
   memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr = ip_addr;
-  server_addr.sin_port = port;
+  server_addr.sin_port = htons(port);
+
+#ifdef DEBUG // DNS and IPv4 & IPv6
+  struct addrinfo hints, *res;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_DGRAM;
+
+  int ret = getaddrinfo(dest_host, dest_port, &hints, &res);
+  if (ret != 0) {
+    perror("getaddrinfo");
+    exit(EXIT_FAILURE);
+  }
+
+  for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
+    if (p->ai_family == AF_INET) {
+      struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+      char ipv4_str[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &(ipv4->sin_addr), ipv4_str, INET_ADDRSTRLEN);
+      printf("IPv4 address: %s\n", ipv4_str);
+    } else if (p->ai_family == AF_INET6) {
+      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
+      char ipv6_str[INET6_ADDRSTRLEN];
+      inet_ntop(AF_INET6, &(ipv6->sin6_addr), ipv6_str, INET6_ADDRSTRLEN);
+      printf("IPv6 address: %s\n", ipv6_str);
+    }
+  }
+#endif
 
   struct timeval timeout;
   timeout.tv_sec = 2;
@@ -108,9 +142,7 @@ int main(int argc, char *argv[]) {
         perror("recvfrom error");
         exit(1);
       }
-#ifdef DEBUG
-      printf("Received response from server: %s\n", buf);
-#endif
+
       break;
     }
   }
@@ -127,8 +159,8 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-#ifdef DEBUG
-  // print the whole struct of result
+#ifdef DEBUG2
+  print the whole struct of result
   printf("type: %u\n", ntohs(result->type));
   printf("id: %u\n", ntohl(result->id));
   printf("arith: %u\n", ntohl(result->arith));
@@ -201,9 +233,7 @@ int main(int argc, char *argv[]) {
         perror("recvfrom error");
         exit(1);
       }
-#ifdef DEBUG
-      printf("Received response from server: %s\n", buf);
-#endif
+
       break;
     }
   }
@@ -215,7 +245,7 @@ int main(int argc, char *argv[]) {
 
   // map the result to the struct calcMessage and print
   struct calcMessage *result2 = (struct calcMessage *)buf;
-#ifdef DEBUG
+#ifdef DEBUG2
   printf("type: %u\n", ntohs(result2->type));
   printf("message: %u\n", ntohl(result2->message));
 #endif
