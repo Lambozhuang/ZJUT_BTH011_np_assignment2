@@ -31,6 +31,8 @@ Implementation in calcLib.c
   int inCalc(int32_t a, int32_t b, int32_t arith);
   double flCalc(double a, double b, int32_t arith);
 
+  char* getArithString(int32_t i);
+
 #endif
 
 #ifdef __cplusplus

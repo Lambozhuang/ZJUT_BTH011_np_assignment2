@@ -12,7 +12,7 @@
 
 
 /* array of char* that points to char arrays.  */ 
-char *arith[]={"add","div","mul","sub","fadd","fdiv","fmul","fsub"};
+char *arith[]={"add","sub","mul","sub","fadd","fsub","fmul","fsub"};
 
 /* Used for random number */
 time_t myData_seedValue;
@@ -76,13 +76,13 @@ int inCalc(int32_t a, int32_t b, int32_t arith) {
       return a+b;
       break;
    case 2:
-      return a/b;
+      return a-b;
       break;
    case 3:
       return a*b;
       break;
    case 4:
-      return a-b;
+      return a/b;
       break;
    default:
       return 0;
@@ -98,13 +98,13 @@ double flCalc(double a, double b, int32_t arith) {
       return a+b;
       break;
    case 6:
-      return a/b;
+      return a-b;
       break;
    case 7:
       return a*b;
       break;
    case 8:
-      return a-b;
+      return a/b;
       break;
    default:
       return 0;
@@ -112,5 +112,9 @@ double flCalc(double a, double b, int32_t arith) {
       exit(1);
       break;
    }
+};
+
+char* getArithString(int32_t i) {
+   return arith[i - 1];
 };
 
