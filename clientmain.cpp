@@ -155,12 +155,12 @@ int main(int argc, char *argv[]) {
   struct calcProtocol *result = (struct calcProtocol *)buf;
 
   if (ntohs(result->type) != 1) {
-    printf("NOT OK. Invalid protocol.\n");
+    printf("NOT OK.\n");
     exit(1);
   }
 
 #ifdef DEBUG2
-  print the whole struct of result
+  // print the whole struct of result
   printf("type: %u\n", ntohs(result->type));
   printf("id: %u\n", ntohl(result->id));
   printf("arith: %u\n", ntohl(result->arith));
